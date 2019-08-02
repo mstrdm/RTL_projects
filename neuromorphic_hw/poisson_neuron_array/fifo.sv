@@ -56,7 +56,7 @@ always @(posedge clk)
 
 always @(posedge clk)
 	if (reset) rd_ptr <= 0;
-	else if (rd_en) rd_ptr <= rd_ptr + 1'b1;
+	else if (rd_en_int|(rd_en_ext&(ptr_dist>1))) rd_ptr <= rd_ptr + 1'b1;
 
 
 // Initialization
