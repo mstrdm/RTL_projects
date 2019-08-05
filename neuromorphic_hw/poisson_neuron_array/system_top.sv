@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 module system_top 
 	(input logic usrclk_n, usrclk_p,
+	 input logic reset,
+	 input rx_in,
 	 output logic fifo_full_led,
 	 output logic tx_out);
 
@@ -11,7 +13,8 @@ localparam REFRACTORY_PER = 4;
 localparam NEUR_WIDTH = ACTIVITY_WIDTH + REFRACTORY_WIDTH;
 localparam TS_WIDTH = 16;
 
-logic clk, reset;
+logic clk;
+// logic reset;
 logic ext_req, ext_ack;
 logic ext_we, ext_re;
 logic [$clog2(NEURON_NUMBER)-1:0] ext_neur_addr;
@@ -30,14 +33,16 @@ logic ser_next;
 logic ser_wr;
 // uart signals
 logic tx_busy;
+logic rx_done;
+logic [7:0] rx_data;
 
-assign reset = 0;
-assign ext_req = 0;
-assign ext_we = 0;
+// assign reset = 0;
+// assign ext_req = 0;
+// assign ext_we = 0;
 assign ext_re = 0;
-assign ext_neur_addr = 0;
-assign ext_neur_data_in = 0;
-assign sys_en = 1;
+// assign ext_neur_addr = 0;
+// assign ext_neur_data_in = 0;
+// assign sys_en = 1;
 
 clk_wiz_0 xilinx_clock (
 	.clk_in1_n(usrclk_n),
@@ -50,6 +55,7 @@ neuron_module #(
 	.REFRACTORY_WIDTH(REFRACTORY_WIDTH),
 	.REFRACTORY_PER(REFRACTORY_PER),
 	.TS_WIDTH(TS_WIDTH)) neuron_module_under_test (
+
 	.clk(clk),
 	.reset(reset),
 	.ext_req(ext_req),
@@ -88,13 +94,36 @@ serializer #(.IN_W(TS_WIDTH+$clog2(NEURON_NUMBER)), .OUT_W(8)) output_ser (
 assign ser_wr = ~ser_out_val & ~fifo_empty;		// we should not be sending anything and something should be at fifo's output
 assign ser_next = ~tx_busy & ser_out_val;		// when uart_tx is not busy and we have valid data at serializer's output, it will always be passed to the uart module at the next clock cycle
 
+uart_rx #(.CK_PER_BIT(869)) uart_rx (
+	.clk(clk),
+	.reset(reset),
+	.rx_in(rx_in),
+	.rx_done(rx_done),
+	.data_out(rx_data));
+
 uart_tx #(.CK_PER_BIT(869)) uart_tx (
 	.clk(clk),
-	.reset(0),
+	.reset(reset),
 	.tx_out(tx_out),
 	.data_req(ser_out_val),
 	.data_in(ser_out_data),
 	.tx_busy(tx_busy));
 
+// State machine
+system_ctrl #(
+	.NEURON_NUMBER(NEURON_NUMBER),
+	.ACTIVITY_WIDTH(ACTIVITY_WIDTH),
+	.REFRACTORY_WIDTH(REFRACTORY_WIDTH)) system_ctrl (
+
+	.clk(clk),
+	.reset(reset),
+	.rx_done(rx_done),
+	.rx_data(rx_data),
+	.nm_ack(ext_ack),
+	.nm_req(ext_req),
+	.nm_addr(ext_neur_addr),
+	.nm_data(ext_neur_data_in),
+	.nm_we(ext_we),
+	.sys_en(sys_en));
 
 endmodule

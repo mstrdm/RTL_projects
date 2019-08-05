@@ -12,6 +12,13 @@ module fifo #(parameter DATA_WIDTH=16, ADDR_WIDTH=7)
 logic [DATA_WIDTH-1:0] fifo_mem [2**ADDR_WIDTH-1:0];
 logic wr_en, rd_en;									// write and read enable
 logic [ADDR_WIDTH-1:0] wr_ptr, rd_ptr;				// RAM read and write addresses
+// Flags
+logic empty_int, empty_int_d;						// integral empty signal and its delayed version
+// Pointers
+logic [ADDR_WIDTH:0] ptr_dist;						// distance between read and write pointers
+logic wr_d;
+logic rd_en_int, rd_en_ext;							// internal and external read enable signals
+
 
 always @(posedge clk)
 	if (wr_en) fifo_mem[wr_ptr] <= data_in;
@@ -21,8 +28,6 @@ always @(posedge clk)
 	else if (rd_en) data_out <= fifo_mem[rd_ptr];
 
 // Flags
-logic empty_int, empty_int_d;						// integral empty signal and its delayed version
-
 assign empty_int = ptr_dist == 0;
 assign fifo_full = ptr_dist == 2**ADDR_WIDTH;		// fifo is full when we wrap around our address space
 
@@ -33,10 +38,6 @@ always @(posedge clk)
 assign fifo_empty = empty_int|empty_int_d;			// going down with empty_int_d and going up with empty_int
 
 // Pointers
-logic [ADDR_WIDTH:0] ptr_dist;						// distance between read and write pointers
-logic wr_d;
-logic rd_en_int, rd_en_ext;							// internal and external read enable signals
-
 always @(posedge clk)
 	if (reset) ptr_dist <= 0;
 	else if (wr_en^rd_en_ext) ptr_dist <= rd_en ? ptr_dist - 1'b1 : ptr_dist + 1'b1;
@@ -63,7 +64,7 @@ always @(posedge clk)
 initial begin
 	data_out = 0;
 	ptr_dist = 0;
-	empty_int_d = 0;
+	empty_int_d = 1;
 	wr_d = 0;
 	wr_ptr = 0;
 	rd_ptr = 0;

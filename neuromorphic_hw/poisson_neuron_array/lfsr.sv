@@ -44,7 +44,10 @@ assign lfsr_out[14] = lfsr_reg[3];
 assign lfsr_out[15] = lfsr_reg[1];
 
 initial begin
-	lfsr_reg = 1;
+	for (int k=1; k<REG_LEN; k++) begin
+		lfsr_reg[k] = 0;
+	end
+	lfsr_reg[0] = 1;
 end
 
 endmodule
